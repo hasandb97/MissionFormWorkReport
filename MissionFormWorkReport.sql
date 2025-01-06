@@ -1,12 +1,13 @@
-﻿
+
 
 
 declare @maxDistance as int  , @empId as int ,@formDate varchar(10) , @toDate varchar(10)
 
 set @empId = 989 
+set @maxDistance=300
 set @formDate='1403/08/01'
 set @toDate = '1403/08/30'
-set @maxDistance=300 
+
 
 -- استخراج فرم کارها برای این تاریخ
 create table #myFormWork(
@@ -27,7 +28,7 @@ create table #myFormWork(
 	IsMission bit
 )
 insert into   #myFormWork(Id , EmpIdRef , Stime , EndTime , EzafeKAr , Dsc , FormDate , Distance , prjCode , CityName  , HarkatHamanRoz, Tomorrow , YesterDay , Mission , IsMission)
-select   w.Srl , w.Srl_Pm_Ashkhas  
+select  w.Srl , w.Srl_Pm_Ashkhas  
 ,CASE WHEN LEN(RIGHT(BeginWorkSat, CHARINDEX(':', REVERSE(BeginWorkSat)) - 1)) = 1 THEN LEFT(BeginWorkSat, CHARINDEX(':', BeginWorkSat)) + '0' + RIGHT(BeginWorkSat, CHARINDEX(':', REVERSE(BeginWorkSat)) - 1) ELSE BeginWorkSat END AS BeginWorkSat
 ,CASE WHEN LEN(RIGHT(EndWorkSat, CHARINDEX(':', REVERSE(EndWorkSat)) - 1)) = 1 THEN LEFT(EndWorkSat, CHARINDEX(':', EndWorkSat)) + '0' + RIGHT(EndWorkSat, CHARINDEX(':', REVERSE(EndWorkSat)) - 1) ELSE EndWorkSat END AS EndWorkSat
 ,CASE WHEN LEN(RIGHT(EzafeKAr, CHARINDEX(':', REVERSE(EzafeKAr)) - 1)) = 1 THEN LEFT(EzafeKAr, CHARINDEX(':', EzafeKAr)) + '0' + RIGHT(EzafeKAr, CHARINDEX(':', REVERSE(EzafeKAr)) - 1) ELSE EzafeKAr END AS EzafeKAr
@@ -38,9 +39,8 @@ join per.pm_Distance as d
 on d.Srl_Post1 = w.Srl_Pm_Post_From and d.Srl_Post2 = w.Srl_Pm_Post_To
 join  per.Pm_post as p
 on p.Srl = w.Srl_Pm_Post_To
-where   w.WorkFormTarikh between @formDate and @toDate
+where  w.WorkFormTarikh between @formDate and @toDate
 order by WorkFormTarikh
-
 
 
 -- بدست آوردن روزهایی که فرم کار پر کرده به همراه ماکس فاصله و مین ساعت شروع و تاریخ فردا و دیروز
@@ -52,6 +52,7 @@ max(CAST(replace(EndTime, ':','') as int)) as EndTimeMax ,
 min( CAST(replace(REPLACE(STime , ':','') , '/','') as int)) as STimeMin  
 FROM #myFormWork GROUP BY EmpIdRef, YesterDay, FormDate, Tomorrow ) SELECT  EmpIdRef, YesterDay, distance as maxDistance, FormDate, 
 Tomorrow, SumEzafe_FormWork, HarkatHamanRoz , EndTimeMax , STimeMin , 1 as HasFormWork , 0 as IsMission  into #DistanceTbl FROM AggregatedData ORDER BY FormDate;
+
 update #DistanceTbl set IsMission = 1 where maxDistance >= 50
 
  -------------------------------------------------------------------------------
@@ -60,21 +61,21 @@ select  dt.* ,
 case when (maxDistance >= @maxDistance) then 1
 	 when EndTimeMax >= 1600 and maxDistance>=140 then 1
 	 else 0 end as CanBackToday,
-case when dt.maxDistance>=300 then 1  when (dt.maxDistance>=140 and dt.maxDistance<300) then 0.5 else 0 end as TMission  into #TomorrowTbl1
-from  #DistanceTbl as dt
-left join #myFormWork as f
-on dt.EmpIdRef=f.EmpIdRef  
-where f.FormDate is null and dt.Tomorrow=f.FormDate
-
-
--- ایجاد جدول بدست امده برای روزهای قبل از فرم کار و تشخیص ساعت شروع قبل از هشت و مسافت بالای صدوچهل
-select  dt.* , case when dt.HarkatHamanRoz = 0 then 1 else 0 end as OnDestination  , 0.5 as YMission   into #YesterDayTbl
+case when dt.maxDistance>=@maxDistance then 1  when (dt.maxDistance>=140 and dt.maxDistance<@maxDistance) then 0.5 else 0 end as TMission  into #TomorrowTbl1
 from  #DistanceTbl as dt
 left join #myFormWork as f
 on dt.EmpIdRef=f.EmpIdRef 
+where f.FormDate is null 
+
+
+-- ایجاد جدول بدست امده برای روزهای قبل از فرم کار و تشخیص ساعت شروع قبل از هشت و مسافت بالای صدوچهل
+select   dt.* , case when dt.HarkatHamanRoz = 0 then 1 else 0 end as OnDestination  , 0.5 as YMission   into #YesterDayTbl
+from  #DistanceTbl as dt
+left join #myFormWork as f
+on dt.EmpIdRef=f.EmpIdRef and dt.YesterDay=f.FormDate
 where f.FormDate is null and dt.STimeMin<=800 and dt.maxDistance>=140
 
-select count(*) from #DistanceTbl
+
 delete from #DistanceTbl where IsMission=0
 
 
@@ -93,13 +94,14 @@ select
 	,d.HarkatHamanRoz
 	,(1 + ISNULL(YMission,0) + ISNULL(TMission , 0)) as SumOfMission  from #DistanceTbl as d
 left join #YesterDayTbl as y
-on y.FormDate = d.FormDate
+on y.FormDate = d.FormDate and y.EmpIdRef=d.EmpIdRef
 left join #TomorrowTbl1 as t
 on t.FormDate = d.FormDate
 left join per.ShamsiCallender as s
 on s.ShamsiDate=d.FormDate
 left join per.Employee as p
-on p.Id = d.EmpIdRef where p.Id=d.EmpIdRef
+on p.Id = d.EmpIdRef
+order by EmpIdRef , d.FormDate
 
 
 drop table #myFormWork
