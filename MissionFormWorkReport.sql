@@ -1,0 +1,110 @@
+﻿
+
+
+declare @maxDistance as int  , @empId as int ,@formDate varchar(10) , @toDate varchar(10)
+
+set @empId = 989 
+set @formDate='1403/08/01'
+set @toDate = '1403/08/30'
+set @maxDistance=300 
+
+-- استخراج فرم کارها برای این تاریخ
+create table #myFormWork(
+	Id int,
+	EmpIdRef varchar(10),
+	Stime varchar(10),
+	EndTime varchar(10),
+	EzafeKAr varchar(10),
+	Dsc varchar(1000),
+	FormDate varchar(10),
+	Distance int,
+	prjCode varchar(20),
+	Tomorrow varchar(10),
+	YesterDay varchar(10),
+	CityName  varchar(40),
+	HarkatHamanRoz bit,
+	Mission int,
+	IsMission bit
+)
+insert into   #myFormWork(Id , EmpIdRef , Stime , EndTime , EzafeKAr , Dsc , FormDate , Distance , prjCode , CityName  , HarkatHamanRoz, Tomorrow , YesterDay , Mission , IsMission)
+select   w.Srl , w.Srl_Pm_Ashkhas  
+,CASE WHEN LEN(RIGHT(BeginWorkSat, CHARINDEX(':', REVERSE(BeginWorkSat)) - 1)) = 1 THEN LEFT(BeginWorkSat, CHARINDEX(':', BeginWorkSat)) + '0' + RIGHT(BeginWorkSat, CHARINDEX(':', REVERSE(BeginWorkSat)) - 1) ELSE BeginWorkSat END AS BeginWorkSat
+,CASE WHEN LEN(RIGHT(EndWorkSat, CHARINDEX(':', REVERSE(EndWorkSat)) - 1)) = 1 THEN LEFT(EndWorkSat, CHARINDEX(':', EndWorkSat)) + '0' + RIGHT(EndWorkSat, CHARINDEX(':', REVERSE(EndWorkSat)) - 1) ELSE EndWorkSat END AS EndWorkSat
+,CASE WHEN LEN(RIGHT(EzafeKAr, CHARINDEX(':', REVERSE(EzafeKAr)) - 1)) = 1 THEN LEFT(EzafeKAr, CHARINDEX(':', EzafeKAr)) + '0' + RIGHT(EzafeKAr, CHARINDEX(':', REVERSE(EzafeKAr)) - 1) ELSE EzafeKAr END AS EzafeKAr
+, w.WorkFormDis    , w.WorkFormTarikh  , d.Distance , w.Srl_HazineCode   
+ , p.Name as CityName ,w.HarkatHamanRoz as HarkatHamanRoz ,   (select [per].[CalcTomorrowShamsi](w.WorkFormTarikh)) as Tomorrow ,(select [per].[CalcYesterdayShamsi](w.WorkFormTarikh)) as YesterDay , 1 , case when d.distance >= 50 then 1 else 0 end
+from per.WorkForm as w
+join per.pm_Distance as d
+on d.Srl_Post1 = w.Srl_Pm_Post_From and d.Srl_Post2 = w.Srl_Pm_Post_To
+join  per.Pm_post as p
+on p.Srl = w.Srl_Pm_Post_To
+where   w.WorkFormTarikh between @formDate and @toDate
+order by WorkFormTarikh
+
+
+
+-- بدست آوردن روزهایی که فرم کار پر کرده به همراه ماکس فاصله و مین ساعت شروع و تاریخ فردا و دیروز
+
+;WITH AggregatedData AS ( SELECT EmpIdRef, YesterDay, MAX(Distance) AS distance, FormDate, Tomorrow,
+SUM( ISNULL( CAST(SUBSTRING(ezafekar, 0, CHARINDEX(':', ezafekar)) AS INT) * 60 + CAST(SUBSTRING(ezafekar, CHARINDEX(':', ezafekar) + 1, LEN(ezafekar)) AS INT), 0) ) AS SumEzafe_FormWork,
+MAX(CAST(HarkatHamanRoz AS TINYINT)) AS HarkatHamanRoz,
+max(CAST(replace(EndTime, ':','') as int)) as EndTimeMax ,
+min( CAST(replace(REPLACE(STime , ':','') , '/','') as int)) as STimeMin  
+FROM #myFormWork GROUP BY EmpIdRef, YesterDay, FormDate, Tomorrow ) SELECT  EmpIdRef, YesterDay, distance as maxDistance, FormDate, 
+Tomorrow, SumEzafe_FormWork, HarkatHamanRoz , EndTimeMax , STimeMin , 1 as HasFormWork , 0 as IsMission  into #DistanceTbl FROM AggregatedData ORDER BY FormDate;
+update #DistanceTbl set IsMission = 1 where maxDistance >= 50
+
+ -------------------------------------------------------------------------------
+-- ایجاد جدول بدست امده برای روزهای بعداز فرم کارو تشخیص اینکه ایا فردا امده شرکت یا ن
+select  dt.* , 
+case when (maxDistance >= @maxDistance) then 1
+	 when EndTimeMax >= 1600 and maxDistance>=140 then 1
+	 else 0 end as CanBackToday,
+case when dt.maxDistance>=300 then 1  when (dt.maxDistance>=140 and dt.maxDistance<300) then 0.5 else 0 end as TMission  into #TomorrowTbl1
+from  #DistanceTbl as dt
+left join #myFormWork as f
+on dt.EmpIdRef=f.EmpIdRef  
+where f.FormDate is null and dt.Tomorrow=f.FormDate
+
+
+-- ایجاد جدول بدست امده برای روزهای قبل از فرم کار و تشخیص ساعت شروع قبل از هشت و مسافت بالای صدوچهل
+select  dt.* , case when dt.HarkatHamanRoz = 0 then 1 else 0 end as OnDestination  , 0.5 as YMission   into #YesterDayTbl
+from  #DistanceTbl as dt
+left join #myFormWork as f
+on dt.EmpIdRef=f.EmpIdRef 
+where f.FormDate is null and dt.STimeMin<=800 and dt.maxDistance>=140
+
+select count(*) from #DistanceTbl
+delete from #DistanceTbl where IsMission=0
+
+
+
+--select * from #myFormWork
+select 
+	d.EmpIdRef
+	,p.PersonalCode
+	,p.Name
+	,p.Family
+	,d.FormDate
+	,s.ShamsiDayName
+	,d.maxDistance
+	,RIGHT('0' + CAST(CAST(d.STimeMin / 100 AS VARCHAR(2)) AS VARCHAR(2)), 2) + ':' + RIGHT('0' + CAST(CAST(d.STimeMin % 100 AS VARCHAR(2)) AS VARCHAR(2)), 2) as StartTimeMin
+	,RIGHT('0' + CAST(CAST(d.EndTimeMax / 100 AS VARCHAR(2)) AS VARCHAR(2)), 2) + ':' + RIGHT('0' + CAST(CAST(d.EndTimeMax % 100 AS VARCHAR(2)) AS VARCHAR(2)), 2) as EndTimeMax
+	,d.HarkatHamanRoz
+	,(1 + ISNULL(YMission,0) + ISNULL(TMission , 0)) as SumOfMission  from #DistanceTbl as d
+left join #YesterDayTbl as y
+on y.FormDate = d.FormDate
+left join #TomorrowTbl1 as t
+on t.FormDate = d.FormDate
+left join per.ShamsiCallender as s
+on s.ShamsiDate=d.FormDate
+left join per.Employee as p
+on p.Id = d.EmpIdRef where p.Id=d.EmpIdRef
+
+
+drop table #myFormWork
+drop table #DistanceTbl
+drop table #TomorrowTbl1
+drop table #YesterDayTbl
+
+
