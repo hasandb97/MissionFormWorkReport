@@ -1,15 +1,15 @@
 
 
 
-declare @maxDistance as int  , @empId as int ,@formDate varchar(10) , @toDate varchar(10) , @fromDate1 varchar(10) , @toDate1 varchar(10)
+declare @maxDistance as int  , @empId as int ,@fromDate varchar(10) , @toDate varchar(10) , @fromDate1 varchar(10) , @toDate1 varchar(10)
 
 set @empId = 936 
 set @maxDistance=300
-set @formDate='1403/08/30'
-set @toDate = '1403/10/01'
-
-set @fromDate1 = '1403/09/01'
-set @toDate1 = '1403/09/30'
+set @fromDate1='1403/08/01'
+set @toDate1 = '1403/08/30'
+-- بدست اوردن روز قبل و روز بعد بازه تاریخی 
+set @fromDate = (select [per].[CalcYesterdayShamsi](@fromDate1))
+set @toDate  = ( select [per].[CalcTomorrowShamsi]( @toDate1 ))
 
 
 -- استخراج فرم کارها برای این تاریخ
@@ -42,7 +42,7 @@ join per.pm_Distance as d
 on d.Srl_Post1 = w.Srl_Pm_Post_From and d.Srl_Post2 = w.Srl_Pm_Post_To
 join  per.Pm_post as p
 on p.Srl = w.Srl_Pm_Post_To
-where  w.WorkFormTarikh between @formDate and @toDate and Srl_Pm_Ashkhas = @empId
+where  w.WorkFormTarikh between @fromDate and @toDate and Srl_Pm_Ashkhas = @empId
 order by WorkFormTarikh
 
 
@@ -105,7 +105,7 @@ left join per.ShamsiCallender as s
 on s.ShamsiDate=d.FormDate
 left join per.Employee as p
 on p.Id = d.EmpIdRef
-where d.FormDate between @fromDate1 and @toDate1
+where d.FormDate between @fromDate1 and @toDate1 
 order by EmpIdRef , d.FormDate
 
 
