@@ -5,7 +5,7 @@ declare @maxDistance as int  , @empId as int ,@fromDate varchar(10) , @toDate va
 
 set @empId = 936 
 set @maxDistance=300
-set @fromDate1='1403/08/01'
+set @fromDate1='1403/07/01'
 set @toDate1 = '1403/08/30'
 -- بدست اوردن روز قبل و روز بعد بازه تاریخی 
 set @fromDate = (select [per].[CalcYesterdayShamsi](@fromDate1))
