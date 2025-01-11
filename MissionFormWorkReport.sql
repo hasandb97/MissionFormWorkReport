@@ -1,12 +1,15 @@
 
 
 
-declare @maxDistance as int  , @empId as int ,@formDate varchar(10) , @toDate varchar(10)
+declare @maxDistance as int  , @empId as int ,@formDate varchar(10) , @toDate varchar(10) , @fromDate1 varchar(10) , @toDate1 varchar(10)
 
-set @empId = 989 
+set @empId = 936 
 set @maxDistance=300
-set @formDate='1403/08/01'
-set @toDate = '1403/08/30'
+set @formDate='1403/08/30'
+set @toDate = '1403/10/01'
+
+set @fromDate1 = '1403/09/01'
+set @toDate1 = '1403/09/30'
 
 
 -- استخراج فرم کارها برای این تاریخ
@@ -39,7 +42,7 @@ join per.pm_Distance as d
 on d.Srl_Post1 = w.Srl_Pm_Post_From and d.Srl_Post2 = w.Srl_Pm_Post_To
 join  per.Pm_post as p
 on p.Srl = w.Srl_Pm_Post_To
-where  w.WorkFormTarikh between @formDate and @toDate
+where  w.WorkFormTarikh between @formDate and @toDate and Srl_Pm_Ashkhas = @empId
 order by WorkFormTarikh
 
 
@@ -64,7 +67,7 @@ case when (maxDistance >= @maxDistance) then 1
 case when dt.maxDistance>=@maxDistance then 1  when (dt.maxDistance>=140 and dt.maxDistance<@maxDistance) then 0.5 else 0 end as TMission  into #TomorrowTbl1
 from  #DistanceTbl as dt
 left join #myFormWork as f
-on dt.EmpIdRef=f.EmpIdRef 
+on dt.EmpIdRef=f.EmpIdRef and dt.Tomorrow=f.FormDate
 where f.FormDate is null 
 
 
@@ -79,6 +82,7 @@ where f.FormDate is null and dt.STimeMin<=800 and dt.maxDistance>=140
 delete from #DistanceTbl where IsMission=0
 
 
+--select * from #TomorrowTbl1
 
 --select * from #myFormWork
 select 
@@ -101,12 +105,14 @@ left join per.ShamsiCallender as s
 on s.ShamsiDate=d.FormDate
 left join per.Employee as p
 on p.Id = d.EmpIdRef
+where d.FormDate between @fromDate1 and @toDate1
 order by EmpIdRef , d.FormDate
+
+
 
 
 drop table #myFormWork
 drop table #DistanceTbl
 drop table #TomorrowTbl1
 drop table #YesterDayTbl
-
 
