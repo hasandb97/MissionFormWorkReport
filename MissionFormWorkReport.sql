@@ -3,9 +3,9 @@
 
 declare @maxDistance as int  , @empId as int ,@fromDate varchar(10) , @toDate varchar(10) , @fromDate1 varchar(10) , @toDate1 varchar(10)
 
-set @empId = 936 
+set @empId = 932 
 set @maxDistance=300
-set @fromDate1='1403/07/01'
+set @fromDate1='1403/08/01'
 set @toDate1 = '1403/08/30'
 -- بدست اوردن روز قبل و روز بعد بازه تاریخی 
 set @fromDate = (select [per].[CalcYesterdayShamsi](@fromDate1))
@@ -42,8 +42,9 @@ join per.pm_Distance as d
 on d.Srl_Post1 = w.Srl_Pm_Post_From and d.Srl_Post2 = w.Srl_Pm_Post_To
 join  per.Pm_post as p
 on p.Srl = w.Srl_Pm_Post_To
-where  w.WorkFormTarikh between @fromDate and @toDate and Srl_Pm_Ashkhas = @empId
+where  w.WorkFormTarikh between @fromDate and @toDate 
 order by WorkFormTarikh
+
 
 
 -- بدست آوردن روزهایی که فرم کار پر کرده به همراه ماکس فاصله و مین ساعت شروع و تاریخ فردا و دیروز
@@ -58,6 +59,7 @@ Tomorrow, SumEzafe_FormWork, HarkatHamanRoz , EndTimeMax , STimeMin , 1 as HasFo
 
 update #DistanceTbl set IsMission = 1 where maxDistance >= 50
 
+
  -------------------------------------------------------------------------------
 -- ایجاد جدول بدست امده برای روزهای بعداز فرم کارو تشخیص اینکه ایا فردا امده شرکت یا ن
 select  dt.* , 
@@ -70,7 +72,6 @@ left join #myFormWork as f
 on dt.EmpIdRef=f.EmpIdRef and dt.Tomorrow=f.FormDate
 where f.FormDate is null 
 
-
 -- ایجاد جدول بدست امده برای روزهای قبل از فرم کار و تشخیص ساعت شروع قبل از هشت و مسافت بالای صدوچهل
 select   dt.* , case when dt.HarkatHamanRoz = 0 then 1 else 0 end as OnDestination  , 0.5 as YMission   into #YesterDayTbl
 from  #DistanceTbl as dt
@@ -78,13 +79,8 @@ left join #myFormWork as f
 on dt.EmpIdRef=f.EmpIdRef and dt.YesterDay=f.FormDate
 where f.FormDate is null and dt.STimeMin<=800 and dt.maxDistance>=140
 
-
 delete from #DistanceTbl where IsMission=0
 
-
---select * from #TomorrowTbl1
-
---select * from #myFormWork
 select 
 	d.EmpIdRef
 	,p.PersonalCode
@@ -100,15 +96,13 @@ select
 left join #YesterDayTbl as y
 on y.FormDate = d.FormDate and y.EmpIdRef=d.EmpIdRef
 left join #TomorrowTbl1 as t
-on t.FormDate = d.FormDate
+on t.FormDate = d.FormDate and t.EmpIdRef=d.EmpIdRef
 left join per.ShamsiCallender as s
 on s.ShamsiDate=d.FormDate
 left join per.Employee as p
 on p.Id = d.EmpIdRef
 where d.FormDate between @fromDate1 and @toDate1 
 order by EmpIdRef , d.FormDate
-
-
 
 
 drop table #myFormWork
