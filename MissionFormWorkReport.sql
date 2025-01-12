@@ -3,7 +3,7 @@
 
 declare @maxDistance as int  , @empId as int ,@fromDate varchar(10) , @toDate varchar(10) , @fromDate1 varchar(10) , @toDate1 varchar(10)
 
-set @empId = 932 
+set @empId = 936 
 set @maxDistance=300
 set @fromDate1='1403/08/01'
 set @toDate1 = '1403/08/30'
@@ -92,7 +92,9 @@ select
 	,RIGHT('0' + CAST(CAST(d.STimeMin / 100 AS VARCHAR(2)) AS VARCHAR(2)), 2) + ':' + RIGHT('0' + CAST(CAST(d.STimeMin % 100 AS VARCHAR(2)) AS VARCHAR(2)), 2) as StartTimeMin
 	,RIGHT('0' + CAST(CAST(d.EndTimeMax / 100 AS VARCHAR(2)) AS VARCHAR(2)), 2) + ':' + RIGHT('0' + CAST(CAST(d.EndTimeMax % 100 AS VARCHAR(2)) AS VARCHAR(2)), 2) as EndTimeMax
 	,d.HarkatHamanRoz
-	,(1 + ISNULL(YMission,0) + ISNULL(TMission , 0)) as SumOfMission  from #DistanceTbl as d
+	,(1 + ISNULL(YMission,0) + ISNULL(TMission , 0)) as SumOfMission
+	into #MissionCalced
+	from #DistanceTbl as d
 left join #YesterDayTbl as y
 on y.FormDate = d.FormDate and y.EmpIdRef=d.EmpIdRef
 left join #TomorrowTbl1 as t
@@ -105,8 +107,30 @@ where d.FormDate between @fromDate1 and @toDate1
 order by EmpIdRef , d.FormDate
 
 
+-----------------------------------------------------------------------------------
+SELECT DISTINCT   Srl_Pm_Ashkhas,WorkFormTarikh ,pf.ostan AS FOstan,pt.ostan  AS TOstan, CAST('' AS VARCHAR(200) ) PostFrom,CAST('' AS VARCHAR(200) ) PostTo  INTO #m  
+FROM per.WorkForm wf JOIN  
+  per.Pm_PostOstanDetailes as pf   on pf.Srl = wf.Srl_Pm_Post_from  JOIN   
+  per.Pm_PostOstanDetailes as pt   on pt.Srl = wf.Srl_Pm_Post_to
+WHERE wf.WorkFormTarikh   between @fromDate and @toDate  AND ( pt.Srl_Pm_Ostan IN (4,5)  OR pf.Srl_Pm_Ostan IN (4,5))    
+
+
+
+UPDATE m SET  postFrom =w.Srl_Pm_Post_From,PostTo=w.Srl_Pm_Post_To  FROM #m m 
+JOIN per.WorkForm w 
+ON w.WorkFormTarikh =m.WorkFormTarikh AND w.Srl_Pm_Ashkhas = m.Srl_Pm_Ashkhas
+
+SELECT * FROM  #MissionCalced s  LEFT JOIN  #m m   ON s.EmpIdRef=m.Srl_Pm_Ashkhas  AND s.FormDate COLLATE SQL_Latin1_General_CP1256_CI_AS = m.WorkFormTarikh COLLATE SQL_Latin1_General_CP1256_CI_AS
+
+select COUNT(*) from #MissionCalced
+select COUNT(*) from #m
+
+
 drop table #myFormWork
 drop table #DistanceTbl
 drop table #TomorrowTbl1
 drop table #YesterDayTbl
+drop table #m
+drop table #MissionCalced
+
 
