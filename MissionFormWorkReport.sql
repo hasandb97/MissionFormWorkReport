@@ -3,7 +3,7 @@
 
 declare @maxDistance as int  , @empId as int ,@fromDate varchar(10) , @toDate varchar(10) , @fromDate1 varchar(10) , @toDate1 varchar(10)
 
-set @empId = 936 
+set @empId = -1 
 set @maxDistance=300
 set @fromDate1='1403/08/01'
 set @toDate1 = '1403/08/30'
@@ -42,7 +42,7 @@ join per.pm_Distance as d
 on d.Srl_Post1 = w.Srl_Pm_Post_From and d.Srl_Post2 = w.Srl_Pm_Post_To
 join  per.Pm_post as p
 on p.Srl = w.Srl_Pm_Post_To
-where  w.WorkFormTarikh between @fromDate and @toDate 
+where  w.WorkFormTarikh between @fromDate and @toDate and (Srl_Pm_Ashkhas=@empId or @empId=-1)
 order by WorkFormTarikh
 
 
@@ -122,9 +122,6 @@ ON w.WorkFormTarikh =m.WorkFormTarikh AND w.Srl_Pm_Ashkhas = m.Srl_Pm_Ashkhas
 
 SELECT * FROM  #MissionCalced s  LEFT JOIN  #m m   ON s.EmpIdRef=m.Srl_Pm_Ashkhas  AND s.FormDate COLLATE SQL_Latin1_General_CP1256_CI_AS = m.WorkFormTarikh COLLATE SQL_Latin1_General_CP1256_CI_AS
 
-select COUNT(*) from #MissionCalced
-select COUNT(*) from #m
-
 
 drop table #myFormWork
 drop table #DistanceTbl
@@ -132,5 +129,4 @@ drop table #TomorrowTbl1
 drop table #YesterDayTbl
 drop table #m
 drop table #MissionCalced
-
 
