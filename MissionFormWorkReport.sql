@@ -3,7 +3,7 @@
 
 declare @maxDistance as int  , @empId as int ,@fromDate varchar(10) , @toDate varchar(10) , @fromDate1 varchar(10) , @toDate1 varchar(10)
 
-set @empId = -1 
+set @empId = 936 
 set @maxDistance=300
 set @fromDate1='1403/08/01'
 set @toDate1 = '1403/08/30'
@@ -42,7 +42,7 @@ join per.pm_Distance as d
 on d.Srl_Post1 = w.Srl_Pm_Post_From and d.Srl_Post2 = w.Srl_Pm_Post_To
 join  per.Pm_post as p
 on p.Srl = w.Srl_Pm_Post_To
-where  w.WorkFormTarikh between @fromDate and @toDate and (Srl_Pm_Ashkhas=@empId or @empId=-1)
+where  w.WorkFormTarikh between @fromDate and @toDate 
 order by WorkFormTarikh
 
 
