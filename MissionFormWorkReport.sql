@@ -42,7 +42,7 @@ join per.pm_Distance as d
 on d.Srl_Post1 = w.Srl_Pm_Post_From and d.Srl_Post2 = w.Srl_Pm_Post_To
 join  per.Pm_post as p
 on p.Srl = w.Srl_Pm_Post_To
-where  w.WorkFormTarikh between @fromDate and @toDate 
+where  w.WorkFormTarikh between @fromDate and @toDate and (Srl_Pm_Ashkhas=@empId OR @empId=-1)
 order by WorkFormTarikh
 
 
